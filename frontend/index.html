@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text and Image Upload</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    #preview {
+      max-width: 300px;
+      max-height: 300px;
+      display: block;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Submit Text and Image</h1>
+
+  <div class="input-group">
+    <label for="textInput">Enter some text:</label><br />
+    <input type="text" id="textInput" name="textInput" />
+  </div>
+
+  <div class="input-group">
+    <label for="imageInput">Upload an image:</label><br />
+    <input type="file" id="imageInput" accept="image/*" />
+    <img id="preview" src="#" alt="Image Preview" style="display:none;" />
+  </div>
+
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+
+    imageInput.addEventListener('change', function() {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  </script>
+</body>
+</html>
