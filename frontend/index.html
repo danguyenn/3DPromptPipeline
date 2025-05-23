@@ -1,83 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Chatbot</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Chat</title>
   <style>
-    #chat {
-      max-width: 400px;
-      margin: 20px auto;
-      border: 1px solid #ccc;
-      padding: 10px;
-      height: 400px;
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 480px;
+      height: 90vh;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      background-color: #4A90E2;
+      padding: 1rem;
+      color: white;
+      font-size: 1.25rem;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .chat-box {
+      flex: 1;
+      padding: 1rem;
       overflow-y: auto;
-      background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: #fafafa;
     }
+
     .msg {
-      margin: 5px 0;
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 20px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      word-wrap: break-word;
     }
-    .user { font-weight: bold; color: blue; }
-    .bot { font-weight: bold; color: green; }
+
+    .user-msg {
+      align-self: flex-end;
+      background-color: #DCF8C6;
+    }
+
+    .bot-msg {
+      align-self: flex-start;
+      background-color: #e4e6eb;
+    }
+
     img.chat-img {
-      max-width: 100%;
-      margin-top: 5px;
-      border-radius: 5px;
+      max-width: 200px;
+      border-radius: 10px;
+      margin-top: 6px;
+      display: block;
+    }
+
+    .chat-form {
+      display: flex;
+      padding: 0.75rem;
+      border-top: 1px solid #ddd;
+      background: #fff;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .chat-form input[type="text"] {
+      flex: 1;
+      padding: 0.6rem 1rem;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      outline: none;
+      font-size: 1rem;
+    }
+
+    .chat-form input[type="file"] {
+      display: none;
+    }
+
+    .upload-btn {
+      background-color: #eaeaea;
+      padding: 0.6rem;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .chat-form button {
+      background-color: #4A90E2;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 20px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    #image-preview {
+      width: 100%;
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+
+    #image-preview img {
+      max-width: 150px;
+      border-radius: 10px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
     }
   </style>
 </head>
 <body>
-  <div id="chat"></div>
+  <div class="chat-container">
+    <div class="chat-header">🧠 AI Chat</div>
+    <div class="chat-box" id="chat"></div>
 
-  <form id="chat-form">
-    <input type="text" id="message" placeholder="Type a message..." autocomplete="off" />
-    <input type="file" id="image" accept="image/*" />
-    <button type="submit">Send</button>
-  </form>
+    <form class="chat-form" id="chat-form">
+      <label class="upload-btn" title="Upload image">
+        📎
+        <input type="file" id="image" accept="image/*" />
+      </label>
+      <input type="text" id="message" placeholder="Type a message..." autocomplete="off" />
+      <button type="submit">Send</button>
+      <div id="image-preview"></div>
+    </form>
+  </div>
 
   <script>
     const chat = document.getElementById('chat');
     const form = document.getElementById('chat-form');
     const messageInput = document.getElementById('message');
     const imageInput = document.getElementById('image');
+    const imagePreview = document.getElementById('image-preview');
+
+    let imageDataUrl = null;
+
+    // Show preview when image is selected
+    imageInput.addEventListener('change', () => {
+      const file = imageInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          imageDataUrl = e.target.result;
+          imagePreview.innerHTML = `<img src="${imageDataUrl}" alt="Preview" />`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        imagePreview.innerHTML = '';
+        imageDataUrl = null;
+      }
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const msg = messageInput.value.trim();
-      const file = imageInput.files[0];
 
-      if (!msg && !file) return;
+      if (!msg && !imageDataUrl) return;
 
-      // Show user message if exists
+      // Add message to chat
       if (msg) {
-        chat.innerHTML += `<div class="msg user">You: ${msg}</div>`;
+        addMessage("You", msg, true);
       }
 
-      // Show uploaded image preview
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          chat.innerHTML += `<div class="msg user"><img class="chat-img" src="${e.target.result}" /></div>`;
-          chat.scrollTop = chat.scrollHeight;
-        };
-        reader.readAsDataURL(file);
-      }
-
-      messageInput.value = '';
-      imageInput.value = '';
-      chat.scrollTop = chat.scrollHeight;
-
-      // Send message to backend if text exists
-      if (msg) {
-        const res = await fetch('http://localhost:5000/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg })
-        });
-        const data = await res.json();
-        chat.innerHTML += `<div class="msg bot">Bot: ${data.reply}</div>`;
+      // Move previewed image into chat
+      if (imageDataUrl) {
+        const img = document.createElement("img");
+        img.src = imageDataUrl;
+        img.className = "chat-img";
+        const wrapper = document.createElement("div");
+        wrapper.className = "msg user-msg";
+        wrapper.appendChild(img);
+        chat.appendChild(wrapper);
         chat.scrollTop = chat.scrollHeight;
       }
+
+      // Clear inputs
+      messageInput.value = '';
+      imageInput.value = '';
+      imagePreview.innerHTML = '';
+      const imageToSend = imageDataUrl;
+      imageDataUrl = null;
+
+      // Send message to backend
+      if (msg) {
+        try {
+          const res = await fetch('http://localhost:5000/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg })
+          });
+          const data = await res.json();
+          addMessage("Bot", data.reply, false);
+        } catch (err) {
+          addMessage("Bot", "Error connecting to server.", false);
+        }
+      }
     });
+
+    function addMessage(sender, text, isUser) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `msg ${isUser ? 'user-msg' : 'bot-msg'}`;
+      msgDiv.innerText = `${text}`;
+      chat.appendChild(msgDiv);
+      chat.scrollTop = chat.scrollHeight;
+    }
   </script>
 </body>
 </html>
