@@ -1,14 +1,18 @@
-# Use nginx as the base image
-FROM nginx:alpine
+# Use official Python image
+FROM python:3.10-slim
 
-# Set working directory inside the container
-WORKDIR /usr/share/nginx/html
+# Set working directory
+WORKDIR /app
 
-# Remove default nginx static files
-RUN rm -rf ./*
+# Install Flask and CORS
+RUN pip install flask flask-cors
 
-# Copy the frontend HTML file from the subdirectory
-COPY frontend/index.html .
+# Copy backend and frontend
+COPY backend/ backend/
+COPY frontend/ frontend/
 
-# Expose port 80
-EXPOSE 80
+# Expose port
+EXPOSE 5000
+
+# Run Flask app with static file support
+CMD ["python", "backend/app.py"]

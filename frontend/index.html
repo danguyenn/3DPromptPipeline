@@ -1,52 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text and Image Upload</title>
+  <meta charset="UTF-8">
+  <title>Chatbot</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
+    #chat {
+      max-width: 400px;
+      margin: 20px auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      background: #f9f9f9;
     }
-    .input-group {
-      margin-bottom: 15px;
+    .msg {
+      margin: 5px 0;
     }
-    #preview {
-      max-width: 300px;
-      max-height: 300px;
-      display: block;
-      margin-top: 10px;
+    .user { font-weight: bold; color: blue; }
+    .bot { font-weight: bold; color: green; }
+    img.chat-img {
+      max-width: 100%;
+      margin-top: 5px;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>Submit Text and Image</h1>
+  <div id="chat"></div>
 
-  <div class="input-group">
-    <label for="textInput">Enter some text:</label><br />
-    <input type="text" id="textInput" name="textInput" />
-  </div>
-
-  <div class="input-group">
-    <label for="imageInput">Upload an image:</label><br />
-    <input type="file" id="imageInput" accept="image/*" />
-    <img id="preview" src="#" alt="Image Preview" style="display:none;" />
-  </div>
+  <form id="chat-form">
+    <input type="text" id="message" placeholder="Type a message..." autocomplete="off" />
+    <input type="file" id="image" accept="image/*" />
+    <button type="submit">Send</button>
+  </form>
 
   <script>
-    const imageInput = document.getElementById('imageInput');
-    const preview = document.getElementById('preview');
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('chat-form');
+    const messageInput = document.getElementById('message');
+    const imageInput = document.getElementById('image');
 
-    imageInput.addEventListener('change', function() {
-      const file = this.files[0];
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = messageInput.value.trim();
+      const file = imageInput.files[0];
+
+      if (!msg && !file) return;
+
+      // Show user message if exists
+      if (msg) {
+        chat.innerHTML += `<div class="msg user">You: ${msg}</div>`;
+      }
+
+      // Show uploaded image preview
       if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-          preview.src = e.target.result;
-          preview.style.display = 'block';
+          chat.innerHTML += `<div class="msg user"><img class="chat-img" src="${e.target.result}" /></div>`;
+          chat.scrollTop = chat.scrollHeight;
         };
         reader.readAsDataURL(file);
+      }
+
+      messageInput.value = '';
+      imageInput.value = '';
+      chat.scrollTop = chat.scrollHeight;
+
+      // Send message to backend if text exists
+      if (msg) {
+        const res = await fetch('http://localhost:5000/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        });
+        const data = await res.json();
+        chat.innerHTML += `<div class="msg bot">Bot: ${data.reply}</div>`;
+        chat.scrollTop = chat.scrollHeight;
       }
     });
   </script>
