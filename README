@@ -1,0 +1,14 @@
+How to run (through Docker container):
+
+1. Build container
+docker build -t my-nginx-site .
+
+2. Run container
+docker run -d -p 8080:80 my-nginx-site
+
+
+3. Open site on localhost
+http://localhost:8080/
+
+
+
