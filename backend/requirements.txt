@@ -1,0 +1,7 @@
+requests
+ipython
+
+openai
+
+numpy
+pyvista
