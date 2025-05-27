@@ -12,6 +12,7 @@ def add_lights(plotter, intensity=1.5):
     plotter.add_light(pv.Light(position=(-5, 0, 0), focal_point=(0, 0, 0), intensity=intensity))
 
 def render_views_with_pyvista(glb_path, output_dir):
+    pv.global_theme.off_screen = True
     os.makedirs(output_dir, exist_ok=True)
 
     print("make images directory")

@@ -592,11 +592,74 @@ class TextTo3DApp {
     }
   }
 
+  async sendRemixRequest(prompt) {
+    this.showTypingIndicator();
+    this.showProgress();
+    let progress = 0;
+
+    const interval = setInterval(() => {
+      progress += Math.random() * 10;
+      this.updateProgress(Math.min(progress, 90));
+    }, 200);
+
+    try {
+      const response = await fetch("http://localhost:5050/remixgen3d", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          glb_path: "3d_files/refined_model.glb",
+          images_output: "images",
+          text: prompt,
+          image_output: "image",
+          threeD_output: "3d_files",
+        }),
+      });
+
+      clearInterval(interval);
+      this.updateProgress(100);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.status === "success") {
+        this.addMessage("✅ Remix complete! Displaying new model...", "bot");
+
+        // Load remixed model
+        const remixPath =
+          "http://localhost:5050/models/remixed_draft_model.glb";
+        this.modelUrls.draft = remixPath;
+        await this.displayModel(remixPath, "draft");
+        this.addModelSwitchControls();
+      } else {
+        this.addMessage(`❌ Remix failed: ${result.message}`, "bot");
+      }
+    } catch (error) {
+      clearInterval(interval);
+      this.addMessage(`❌ Remix error: ${error.message}`, "bot");
+    } finally {
+      this.hideTypingIndicator();
+      this.hideProgress();
+      this.clearFiles();
+      this.sendBtn.disabled = false;
+      this.isGenerating = false;
+    }
+  }
+
   async handleSubmit(e) {
+
     e.preventDefault();
     const message = this.chatInput.value.trim();
     if (!message && this.currentFiles.length === 0) return;
     if (this.isGenerating) return;
+
+    if(this.currentModel && this.modelUrls.refined){
+      await this.sendRemixRequest(message);
+      return;
+    }
 
     if (message) {
       this.addMessage(message, "user");
