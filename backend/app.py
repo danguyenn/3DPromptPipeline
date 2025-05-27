@@ -4,6 +4,7 @@ from txt_to_3d import txt_gen_3d
 from images_to_image import images_gen_image
 from vista_3d_to_images import render_views_with_pyvista
 from image_to_3d import image_gen_3d
+from werkzeug.utils import secure_filename
 import os
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='/')
@@ -73,6 +74,22 @@ def serve_model(filename):
             return jsonify({"error": "File not found"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/upload', methods=['POST'])
+def upload_glb():
+    if 'file' not in request.files:
+        return jsonify(status="fail", message="No file provided"), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify(status="fail", message="Empty filename"), 400
+
+    filename = secure_filename(file.filename)
+    save_path = os.path.join("3d_files", filename)
+    file.save(save_path)
+
+    return jsonify(status="success", filename=filename)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

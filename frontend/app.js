@@ -494,24 +494,43 @@ class TextTo3DApp {
   handleFiles(files, autoDisplay = false) {
     this.currentFiles = Array.from(files);
     this.displayFilePreview();
-
-    // Auto-display first .glb file if present
+  
     const glbFileIndex = this.currentFiles.findIndex((file) =>
       file.name.toLowerCase().endsWith(".glb")
     );
+  
     if (glbFileIndex !== -1 && autoDisplay) {
       const glbFile = this.currentFiles[glbFileIndex];
-      const localUrl = URL.createObjectURL(glbFile);
-      this.modelUrls.refined = localUrl;
-      this.currentModelType = "refined";
-      this.displayModel(localUrl, "refined");
-      this.addModelSwitchControls();
-      this.addMessage(
-        `Displaying uploaded GLB file: ${glbFile.name}`,
-        "system"
-      );
+      const formData = new FormData();
+      formData.append("file", glbFile);
+  
+      this.addMessage(`📤 Uploading ${glbFile.name}...`, "system");
+  
+      fetch("http://localhost:5050/upload", {
+        method: "POST",
+        body: formData,
+      })
+        .then((res) => res.json())
+        .then(async (data) => {
+          if (data.status === "success") {
+            const modelUrl = `http://localhost:5050/models/${data.filename}`;
+            this.modelUrls.refined = modelUrl;
+            this.currentModelType = "refined";
+  
+            await this.displayModel(modelUrl, "refined");
+            this.addModelSwitchControls();
+            this.addMessage(`✅ Uploaded and displayed: ${data.filename}`, "system");
+          } else {
+            this.addMessage(`❌ Upload failed: ${data.message}`, "bot");
+          }
+        })
+        .catch((err) => {
+          console.error("Upload error:", err);
+          this.addMessage(`❌ Upload error: ${err.message}`, "bot");
+        });
     }
   }
+  
 
   clearFiles() {
     this.currentFiles = [];
@@ -596,41 +615,49 @@ class TextTo3DApp {
     this.showTypingIndicator();
     this.showProgress();
     let progress = 0;
-
+  
     const interval = setInterval(() => {
       progress += Math.random() * 10;
       this.updateProgress(Math.min(progress, 90));
     }, 200);
-
+  
     try {
+      if (!this.modelUrls.refined || !this.modelUrls.refined.includes("/models/")) {
+        throw new Error("No uploaded model found for remixing.");
+      }
+  
+      // Extract filename from the URL, e.g., /models/lion.glb → lion.glb
+      const filename = this.modelUrls.refined.split("/models/")[1];
+      const glb_path = `3d_files/${filename}`;
+  
       const response = await fetch("http://localhost:5050/remixgen3d", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          glb_path: "3d_files/refined_model.glb",
+          glb_path: glb_path,
           images_output: "images",
           text: prompt,
           image_output: "image",
           threeD_output: "3d_files",
         }),
       });
-
+  
       clearInterval(interval);
       this.updateProgress(100);
-
+  
       if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-
+  
       const result = await response.json();
+  
       if (result.status === "success") {
         this.addMessage("✅ Remix complete! Displaying new model...", "bot");
-
-        // Load remixed model
-        const remixPath =
-          "http://localhost:5050/models/remixed_draft_model.glb";
+  
+        const remixPath = "http://localhost:5050/models/remixed_draft_model.glb";
         this.modelUrls.draft = remixPath;
         await this.displayModel(remixPath, "draft");
         this.addModelSwitchControls();
@@ -639,6 +666,7 @@ class TextTo3DApp {
       }
     } catch (error) {
       clearInterval(interval);
+      console.error("Remix error:", error);
       this.addMessage(`❌ Remix error: ${error.message}`, "bot");
     } finally {
       this.hideTypingIndicator();
@@ -648,6 +676,7 @@ class TextTo3DApp {
       this.isGenerating = false;
     }
   }
+  
 
   async handleSubmit(e) {
 
