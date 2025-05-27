@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from txt_to_3d import gen_3d
+from txt_to_3d import txt_gen_3d
+from images_to_image import images_gen_image
+from threeD_to_images import render_views
 import os
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='/')
@@ -23,7 +25,34 @@ def txtgen3d():
     save_path = request.json.get('save_path')
 
     try:
-        gen_3d(text, artstyle, save_path)
+        txt_gen_3d(text, artstyle, save_path)
+        if (os.access(save_path + "/refined_model.glb", os.F_OK)) and (os.access(save_path + "/draft_model.glb", os.F_OK)):
+            return jsonify(status="success", message="Rendering complete.")
+        return jsonify(status="fail", message="Rendering failed.")
+    except Exception as e:
+        return jsonify(status="error", message=str(e)), 500
+    
+@app.route('/remixgen3d', methods=['POST'])
+def remixgen3d():
+    glb_path = request.json.get('glb_path')
+    images_output = request.json.get('images_output')
+
+    text = request.json.get('text')
+    image_dir = request.json.get('image_dir')
+    save_path = request.json.get('save_path')
+
+    
+
+    try:
+        #create images from 3d model
+        render_views(glb_path, images_output)
+        #generate chatgpt image from the images
+        images_gen_image(text, image_dir, save_path)
+
+        #generate 3d model from chatgpt image
+
+
+        txt_gen_3d(text, artstyle, save_path)
         if (os.access(save_path + "/refined_model.glb", os.F_OK)) and (os.access(save_path + "/draft_model.glb", os.F_OK)):
             return jsonify(status="success", message="Rendering complete.")
         return jsonify(status="fail", message="Rendering failed.")

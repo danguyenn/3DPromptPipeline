@@ -3,10 +3,7 @@ import os
 import glob
 from openai import OpenAI
 from IPython.display import display
-
-OPENAI_API = ''
-
-client = OpenAI(api_key=OPENAI_API)
+from dotenv import load_dotenv
 
 # Function to encode the image
 def encode_image(image_path):
@@ -20,7 +17,7 @@ def get_image_files(input_dir):
     image_paths.extend(glob.glob(os.path.join(input_dir, ext)))
    return image_paths
     
-def gen_image(text_prompt, encoded_images, save_dir):
+def gen_image(client, text_prompt, encoded_images, save_dir):
   #we need to iteratively add the encoded images since we do not know how many there will be before runtime
   content = [{ "type": "input_text", "text": text_prompt }]
 
@@ -54,6 +51,22 @@ def gen_image(text_prompt, encoded_images, save_dir):
         f.write(base64.b64decode(image_base64))
 
   #return image_filename
+
+def images_gen_image(text, image_dir, save_path):
+    os.makedirs(save_path, exist_ok=True)
+    load_dotenv()
+    api_key = os.getenv("OPENAI_API")
+    client = OpenAI(api_key=api_key)
+
+    image_paths = get_image_files(image_dir)
+    print(f"Found {len(image_paths)} images.")
+
+    encoded_images = []
+    for image_path in image_paths:
+       encoded_images.append(encode_image(image_path))
+       
+    #generate image from text prompt and multiple images
+    gen_image(client, text, encoded_images, save_dir + "/output.png")
     
 
 if __name__ == "__main__":

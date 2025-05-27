@@ -154,13 +154,13 @@ def gen_3d_refined(task_id, refined_filename, headers):
     download_refined_model(refined_task, refined_filename)
 
 
-def gen_3d(text, artstyle, save_path):
+def txt_gen_3d(text, artstyle, save_path):
 
     os.makedirs(save_path, exist_ok=True)
 
     load_dotenv()
 
-    api_key = os.getenv("MESHY_TEST_API")
+    api_key = os.getenv("MESHY_API")
 
     headers = {
         "Authorization": f"Bearer {api_key}"
