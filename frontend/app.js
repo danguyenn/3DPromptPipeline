@@ -1,3 +1,4 @@
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // app.js
 class TextTo3DApp {
   constructor() {
@@ -143,7 +144,7 @@ class TextTo3DApp {
 
   async loadGLBModel(url) {
     return new Promise((resolve, reject) => {
-      const loader = new THREE.GLTFLoader();
+      const loader = new GLTFLoader();
       loader.load(
         url,
         (gltf) => {
@@ -357,28 +358,33 @@ class TextTo3DApp {
   }
 
   setupDragAndDrop() {
+    const preventDefaults = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+  
+    // Prevent default drag behaviors globally (IMPORTANT)
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-      this.fileUploadArea?.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      });
+      document.addEventListener(eventName, preventDefaults, false);
     });
-
+  
+    // Highlight drop area
     ['dragenter', 'dragover'].forEach(eventName => {
       this.fileUploadArea?.addEventListener(eventName, () => {
         this.fileUploadArea?.classList.add('dragover');
       });
     });
-
+  
     ['dragleave', 'drop'].forEach(eventName => {
       this.fileUploadArea?.addEventListener(eventName, () => {
         this.fileUploadArea?.classList.remove('dragover');
       });
     });
-
+  
+    // Handle dropped files
     this.fileUploadArea?.addEventListener('drop', (e) => {
       const files = e.dataTransfer.files;
-      this.handleFiles(files);
+      this.handleFiles(files, true); // true = auto-display
     });
   }
 
@@ -445,12 +451,24 @@ class TextTo3DApp {
   }
 
   handleFileSelect(e) {
-    this.handleFiles(e.target.files);
+    const files = e.target.files;
+    this.handleFiles(files, true);
   }
 
-  handleFiles(files) {
+  handleFiles(files, autoDisplay = false) {
     this.currentFiles = Array.from(files);
     this.displayFilePreview();
+
+    // Auto-display first .glb file if present
+    const glbFile = this.currentFiles.findIndex(file => file.name.toLowerCase().endsWith('.glb'));
+    if (glbFile && autoDisplay) {
+      const localUrl = URL.createObjectURL(glbFile);
+      this.modelUrls.refined = localUrl;
+      this.currentModelType = 'refined';
+      this.displayModel(localUrl, 'refined');
+      this.addModelSwitchControls();
+      this.addMessage(`Displaying uploaded GLB file: ${glbFile.name}`, 'system');
+    }
   }
 
   clearFiles() {
