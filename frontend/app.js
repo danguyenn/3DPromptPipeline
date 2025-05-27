@@ -612,6 +612,10 @@ class TextTo3DApp {
   }
 
   async sendRemixRequest(prompt) {
+    this.addMessage(prompt, "user");
+    this.chatInput.value="";
+    this.chatInput.style.height="auto";
+    
     this.showTypingIndicator();
     this.showProgress();
     let progress = 0;
