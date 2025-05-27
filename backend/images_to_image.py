@@ -66,7 +66,7 @@ def images_gen_image(text, image_dir, save_path):
        encoded_images.append(encode_image(image_path))
        
     #generate image from text prompt and multiple images
-    gen_image(client, text, encoded_images, save_dir + "/output.png")
+    gen_image(client, text, encoded_images, save_path + "/remixed_image.png")
     
 
 if __name__ == "__main__":
@@ -93,5 +93,5 @@ if __name__ == "__main__":
        encoded_images.append(encode_image(image_path))
        
     #generate image from text prompt and multiple images
-    gen_image(text, encoded_images, save_dir + "/output.png")
+    gen_image(text, encoded_images, save_dir + "/remixed_image.png")
 

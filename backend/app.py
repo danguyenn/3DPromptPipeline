@@ -2,7 +2,8 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from txt_to_3d import txt_gen_3d
 from images_to_image import images_gen_image
-from threeD_to_images import render_views
+from vista_3d_to_images import render_views_with_pyvista
+from image_to_3d import image_gen_3d
 import os
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='/')
@@ -38,24 +39,27 @@ def remixgen3d():
     images_output = request.json.get('images_output')
 
     text = request.json.get('text')
-    image_dir = request.json.get('image_dir')
-    save_path = request.json.get('save_path')
+    image_output = request.json.get('image_output')
 
-    
+    threeD_output = request.json.get('threeD_output')
 
     try:
         #create images from 3d model
-        render_views(glb_path, images_output)
+        render_views_with_pyvista(glb_path, images_output)
+        if not (os.access(images_output + "/top.png", os.F_OK)):
+            return jsonify(status="fail", message="Creating images from 3d model failed.")
+
         #generate chatgpt image from the images
-        images_gen_image(text, image_dir, save_path)
-
+        images_gen_image(text + "Output only one image with a front view", images_output, image_output)
+        if not (os.access(image_output + "/remixed_image.png", os.F_OK)):
+            return jsonify(status="fail", message="Creating image from text and images failed.")
+        
         #generate 3d model from chatgpt image
+        image_gen_3d(image_output + "/remixed_image.png", threeD_output)
+        if not (os.access(threeD_output + "/remixed_draft_model.glb", os.F_OK)):
+            return jsonify(status="fail", message="Creating image from text and images failed.")
 
-
-        txt_gen_3d(text, artstyle, save_path)
-        if (os.access(save_path + "/refined_model.glb", os.F_OK)) and (os.access(save_path + "/draft_model.glb", os.F_OK)):
-            return jsonify(status="success", message="Rendering complete.")
-        return jsonify(status="fail", message="Rendering failed.")
+        return jsonify(status="success", message="Rendering complete.")
     except Exception as e:
         return jsonify(status="error", message=str(e)), 500
 

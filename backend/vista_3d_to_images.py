@@ -14,12 +14,20 @@ def add_lights(plotter, intensity=1.5):
 def render_views_with_pyvista(glb_path, output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
+    print("make images directory")
+
     # Create a plotter
     plotter = pv.Plotter(off_screen=True, window_size=(640, 480), lighting='none')
 
+    print("created plotter")
+
     plotter.import_gltf(glb_path)
 
+    print("imported glb file")
+
     add_lights(plotter)
+
+    print("created lights for plotter")
 
     # Set up views (camera positions)
     camera_views = {

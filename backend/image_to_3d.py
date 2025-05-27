@@ -1,13 +1,8 @@
 import requests
 import time
 import base64
+from dotenv import load_dotenv
 import os
-
-MESHY_TEST_API = ''
-
-headers = {
-"Authorization": f"Bearer {MESHY_TEST_API}"
-}
 
 # Function to encode the image
 def encode_image(image_path):
@@ -15,7 +10,7 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 #create task to generate 3d model from text
-def create_draft_task(image_path):
+def create_draft_task(image_path, headers):
 
     payload = {
     #"mode": "preview",
@@ -41,7 +36,7 @@ def create_draft_task(image_path):
 
 #we get the id of the task returned from meshy ai
 #since this is an asynchronous task handled by meshy ai's servers, we need to continually request the status of the task
-def return_draft_task(task_id):
+def return_draft_task(task_id, headers):
     task = None
 
     while True:
@@ -83,10 +78,10 @@ def download_draft__model(task, draft_filename):
     print("Draft model downloaded.")
 
 
-def gen_3d_draft(image_path, draft_filename):
-    task_id = create_draft_task(image_path)
+def gen_3d_draft(image_path, draft_filename, headers):
+    task_id = create_draft_task(image_path, headers)
 
-    task = return_draft_task(task_id)
+    task = return_draft_task(task_id, headers)
 
     download_draft__model(task, draft_filename)
 
@@ -165,6 +160,22 @@ def gen_3d_refined(task_id, refined_filename):
     download_refined_model(refined_task, refined_filename)
 '''
 
+def image_gen_3d(image_path, save_path):
+
+    os.makedirs(save_path, exist_ok=True)
+
+    load_dotenv()
+
+    api_key = os.getenv("MESHY_API")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    draft_filepath = save_path + "/remixed_draft_model.glb"
+    
+    gen_3d_draft(image_path, draft_filepath, headers)
+
 if __name__ == "__main__":
     import argparse
 
@@ -180,7 +191,6 @@ if __name__ == "__main__":
     os.makedirs(save_path, exist_ok=True)
 
     draft_filepath = save_path + "/remixed_draft_model.glb"
-    refined_filepath = save_path + "/remixed_refined_model.glb"
 
     #FIRST PHASE: GENERATE 3D DRAFT
     gen_3d_draft(image_path, draft_filepath)
