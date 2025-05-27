@@ -1,15 +1,10 @@
 import requests
 import time
+from dotenv import load_dotenv
 import os
 
-MESHY_TEST_API = ''
-
-headers = {
-"Authorization": f"Bearer {MESHY_TEST_API}"
-}
-
 #create task to generate 3d model from text
-def create_draft_task(prompt, art_style):
+def create_draft_task(prompt, art_style, headers):
 
     payload = {
     "mode": "preview",
@@ -35,7 +30,7 @@ def create_draft_task(prompt, art_style):
 
 #we get the id of the task returned from meshy ai
 #since this is an asynchronous task handled by meshy ai's servers, we need to continually request the status of the task
-def return_draft_task(task_id):
+def return_draft_task(task_id, headers):
     task = None
 
     while True:
@@ -77,17 +72,17 @@ def download_draft__model(task, draft_filename):
     print("Draft model downloaded.")
 
 
-def gen_3d_draft(prompt, artstyle, draft_filename):
-    task_id = create_draft_task(prompt, artstyle)
+def gen_3d_draft(prompt, artstyle, draft_filename, headers):
+    task_id = create_draft_task(prompt, artstyle, headers)
 
-    task = return_draft_task(task_id)
+    task = return_draft_task(task_id, headers)
 
     download_draft__model(task, draft_filename)
 
     return task_id
 
 #sends a request to refine the 3d model
-def create_refined_task(task_id):
+def create_refined_task(task_id, headers):
     generate_refined_request = {
         "mode": "refine",
         "preview_task_id": task_id,
@@ -112,7 +107,7 @@ def create_refined_task(task_id):
     return refined_task_id
 
 #poll until refined task is done processing on server
-def return_refined_task(refined_task_id):
+def return_refined_task(refined_task_id, headers):
     refined_task = None
 
     while True:
@@ -151,13 +146,31 @@ def download_refined_model(refined_task, refined_filename):
 
     print("Refined model downloaded.")
 
-def gen_3d_refined(task_id, refined_filename):
-    refined_task_id = create_refined_task(task_id)
+def gen_3d_refined(task_id, refined_filename, headers):
+    refined_task_id = create_refined_task(task_id, headers)
 
-    refined_task = return_refined_task(refined_task_id)
+    refined_task = return_refined_task(refined_task_id, headers)
 
     download_refined_model(refined_task, refined_filename)
 
+
+def gen_3d(text, artstyle, save_path):
+
+    os.makedirs(save_path, exist_ok=True)
+
+    load_dotenv()
+
+    api_key = os.getenv("MESHY_TEST_API")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    draft_filepath = save_path + "/draft_model.glb"
+    refined_filepath = save_path + "/refined_model.glb"
+    
+    task_id = gen_3d_draft(text, artstyle, draft_filepath, headers)
+    gen_3d_refined(task_id, refined_filepath, headers)
 
 
 if __name__ == "__main__":
