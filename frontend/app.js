@@ -1,4 +1,3 @@
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // app.js
 class TextTo3DApp {
   constructor() {
@@ -12,7 +11,7 @@ class TextTo3DApp {
     this.controls = null;
     this.currentModel = null;
     this.modelUrls = { refined: null, draft: null };
-    this.currentModelType = 'refined'; // 'refined' or 'draft'
+    this.currentModelType = "refined"; // 'refined' or 'draft'
     this.initializeElements();
     this.setupEventListeners();
     this.setupDragAndDrop();
@@ -22,23 +21,23 @@ class TextTo3DApp {
   }
 
   initializeElements() {
-    this.chatMessages = document.getElementById('chat-messages');
-    this.chatForm = document.getElementById('chat-form');
-    this.chatInput = document.getElementById('chat-input');
-    this.sendBtn = document.getElementById('send-btn');
-    this.fileInput = document.getElementById('file-input');
-    this.fileUploadArea = document.getElementById('file-upload-area');
-    this.filePreview = document.getElementById('file-preview');
-    this.progressBar = document.getElementById('progress-bar');
-    this.progressFill = document.getElementById('progress-fill');
-    this.viewerArea = document.getElementById('viewer-area');
-    this.modelInfo = document.getElementById('model-info');
-    this.downloadBtn = document.getElementById('download-model');
-    this.resizeHandle = document.getElementById('resize-handle');
-    this.appContainer = document.getElementById('app-container');
-    this.chatSection = document.querySelector('.chat-section');
-    this.infoToggle = document.getElementById('info-toggle');
-    this.closeInfo = document.getElementById('close-info');
+    this.chatMessages = document.getElementById("chat-messages");
+    this.chatForm = document.getElementById("chat-form");
+    this.chatInput = document.getElementById("chat-input");
+    this.sendBtn = document.getElementById("send-btn");
+    this.fileInput = document.getElementById("file-input");
+    this.fileUploadArea = document.getElementById("file-upload-area");
+    this.filePreview = document.getElementById("file-preview");
+    this.progressBar = document.getElementById("progress-bar");
+    this.progressFill = document.getElementById("progress-fill");
+    this.viewerArea = document.getElementById("viewer-area");
+    this.modelInfo = document.getElementById("model-info");
+    this.downloadBtn = document.getElementById("download-model");
+    this.resizeHandle = document.getElementById("resize-handle");
+    this.appContainer = document.getElementById("app-container");
+    this.chatSection = document.querySelector(".chat-section");
+    this.infoToggle = document.getElementById("info-toggle");
+    this.closeInfo = document.getElementById("close-info");
   }
 
   initThreeJS() {
@@ -57,7 +56,10 @@ class TextTo3DApp {
 
     // Create renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(this.viewerArea.clientWidth, this.viewerArea.clientHeight);
+    this.renderer.setSize(
+      this.viewerArea.clientWidth,
+      this.viewerArea.clientHeight
+    );
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputEncoding = THREE.sRGBEncoding;
@@ -79,8 +81,8 @@ class TextTo3DApp {
     this.setupMouseControls();
 
     // Handle window resize
-    window.addEventListener('resize', () => this.onWindowResize());
-    
+    window.addEventListener("resize", () => this.onWindowResize());
+
     // Start render loop
     this.animate();
   }
@@ -92,17 +94,17 @@ class TextTo3DApp {
     let rotationX = 0;
     let rotationY = 0;
 
-    this.viewerArea.addEventListener('mousedown', (e) => {
+    this.viewerArea.addEventListener("mousedown", (e) => {
       isMouseDown = true;
       mouseX = e.clientX;
       mouseY = e.clientY;
     });
 
-    this.viewerArea.addEventListener('mouseup', () => {
+    this.viewerArea.addEventListener("mouseup", () => {
       isMouseDown = false;
     });
 
-    this.viewerArea.addEventListener('mousemove', (e) => {
+    this.viewerArea.addEventListener("mousemove", (e) => {
       if (!isMouseDown || !this.currentModel) return;
 
       const deltaX = e.clientX - mouseX;
@@ -119,13 +121,16 @@ class TextTo3DApp {
     });
 
     // Mouse wheel for zoom
-    this.viewerArea.addEventListener('wheel', (e) => {
+    this.viewerArea.addEventListener("wheel", (e) => {
       e.preventDefault();
       if (!this.currentModel) return;
 
       const zoom = e.deltaY * 0.001;
       this.camera.position.z += zoom;
-      this.camera.position.z = Math.max(1, Math.min(20, this.camera.position.z));
+      this.camera.position.z = Math.max(
+        1,
+        Math.min(20, this.camera.position.z)
+      );
     });
   }
 
@@ -136,15 +141,19 @@ class TextTo3DApp {
 
   onWindowResize() {
     if (!this.camera || !this.renderer) return;
-    
-    this.camera.aspect = this.viewerArea.clientWidth / this.viewerArea.clientHeight;
+
+    this.camera.aspect =
+      this.viewerArea.clientWidth / this.viewerArea.clientHeight;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.viewerArea.clientWidth, this.viewerArea.clientHeight);
+    this.renderer.setSize(
+      this.viewerArea.clientWidth,
+      this.viewerArea.clientHeight
+    );
   }
 
   async loadGLBModel(url) {
     return new Promise((resolve, reject) => {
-      const loader = new GLTFLoader();
+      const loader = new THREE.GLTFLoader();
       loader.load(
         url,
         (gltf) => {
@@ -152,17 +161,20 @@ class TextTo3DApp {
         },
         (progress) => {
           // Handle loading progress if needed
-          console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+          console.log(
+            "Loading progress:",
+            (progress.loaded / progress.total) * 100 + "%"
+          );
         },
         (error) => {
-          console.error('Error loading GLB model:', error);
+          console.error("Error loading GLB model:", error);
           reject(error);
         }
       );
     });
   }
 
-  async displayModel(modelUrl, modelType = 'refined') {
+  async displayModel(modelUrl, modelType = "refined") {
     try {
       // Clear existing model
       if (this.currentModel) {
@@ -174,15 +186,15 @@ class TextTo3DApp {
 
       // Load new model
       const model = await this.loadGLBModel(modelUrl);
-      
+
       // Center and scale the model
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
-      
+
       // Center the model
       model.position.sub(center);
-      
+
       // Scale to fit in view
       const maxSize = Math.max(size.x, size.y, size.z);
       const scale = 2 / maxSize;
@@ -209,17 +221,24 @@ class TextTo3DApp {
       // Update model info
       this.updateModelInfo(modelType, size);
 
-      this.addMessage(`✅ ${modelType === 'refined' ? 'Refined' : 'Draft'} model loaded successfully!`, 'system');
-
+      this.addMessage(
+        `✅ ${
+          modelType === "refined" ? "Refined" : "Draft"
+        } model loaded successfully!`,
+        "system"
+      );
     } catch (error) {
-      console.error('Error displaying model:', error);
-      this.addMessage(`❌ Error loading ${modelType} model: ${error.message}`, 'bot');
+      console.error("Error displaying model:", error);
+      this.addMessage(
+        `❌ Error loading ${modelType} model: ${error.message}`,
+        "bot"
+      );
       this.showModelError();
     }
   }
 
   showModelLoading() {
-    const placeholder = this.viewerArea.querySelector('.placeholder');
+    const placeholder = this.viewerArea.querySelector(".placeholder");
     if (placeholder) {
       placeholder.innerHTML = `
         <div class="loading-spinner"></div>
@@ -230,7 +249,7 @@ class TextTo3DApp {
   }
 
   showModelError() {
-    const placeholder = this.viewerArea.querySelector('.placeholder');
+    const placeholder = this.viewerArea.querySelector(".placeholder");
     if (placeholder) {
       placeholder.innerHTML = `
         <div class="placeholder-icon">❌</div>
@@ -241,18 +260,22 @@ class TextTo3DApp {
   }
 
   clearPlaceholder() {
-    const placeholder = this.viewerArea.querySelector('.placeholder');
+    const placeholder = this.viewerArea.querySelector(".placeholder");
     if (placeholder) {
-      placeholder.style.display = 'none';
+      placeholder.style.display = "none";
     }
   }
 
   updateModelInfo(modelType, size) {
-    const modelDetails = document.getElementById('model-details');
+    const modelDetails = document.getElementById("model-details");
     if (modelDetails) {
       modelDetails.innerHTML = `
-        <strong>Model Type:</strong> ${modelType === 'refined' ? 'Refined Quality' : 'Draft Quality'}<br>
-        <strong>Dimensions:</strong> ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}<br>
+        <strong>Model Type:</strong> ${
+          modelType === "refined" ? "Refined Quality" : "Draft Quality"
+        }<br>
+        <strong>Dimensions:</strong> ${size.x.toFixed(2)} × ${size.y.toFixed(
+        2
+      )} × ${size.z.toFixed(2)}<br>
         <strong>Vertices:</strong> ${this.getVertexCount()}<br>
         <strong>Format:</strong> GLB (Binary glTF)<br>
         <strong>Status:</strong> Ready for download
@@ -262,7 +285,7 @@ class TextTo3DApp {
 
   getVertexCount() {
     if (!this.currentModel) return 0;
-    
+
     let vertexCount = 0;
     this.currentModel.traverse((child) => {
       if (child.isMesh && child.geometry) {
@@ -273,20 +296,22 @@ class TextTo3DApp {
   }
 
   setupEventListeners() {
-    this.chatForm.addEventListener('submit', (e) => this.handleSubmit(e));
-    this.fileUploadArea?.addEventListener('click', () => this.fileInput?.click());
-    this.fileInput?.addEventListener('change', (e) => this.handleFileSelect(e));
-    this.downloadBtn?.addEventListener('click', () => this.downloadModel());
-    this.infoToggle?.addEventListener('click', () => this.toggleModelInfo());
-    this.closeInfo?.addEventListener('click', () => this.hideModelInfo());
+    this.chatForm.addEventListener("submit", (e) => this.handleSubmit(e));
+    this.fileUploadArea?.addEventListener("click", () =>
+      this.fileInput?.click()
+    );
+    this.fileInput?.addEventListener("change", (e) => this.handleFileSelect(e));
+    this.downloadBtn?.addEventListener("click", () => this.downloadModel());
+    this.infoToggle?.addEventListener("click", () => this.toggleModelInfo());
+    this.closeInfo?.addEventListener("click", () => this.hideModelInfo());
   }
 
   // Add model switching functionality
   addModelSwitchControls() {
     if (!this.modelUrls.refined || !this.modelUrls.draft) return;
 
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'model-switch-controls';
+    const controlsDiv = document.createElement("div");
+    controlsDiv.className = "model-switch-controls";
     controlsDiv.style.cssText = `
       position: absolute;
       top: 20px;
@@ -296,27 +321,31 @@ class TextTo3DApp {
       z-index: 10;
     `;
 
-    const refinedBtn = document.createElement('button');
-    refinedBtn.textContent = 'Refined';
-    refinedBtn.className = `model-switch-btn ${this.currentModelType === 'refined' ? 'active' : ''}`;
-    refinedBtn.onclick = () => this.switchModel('refined');
+    const refinedBtn = document.createElement("button");
+    refinedBtn.textContent = "Refined";
+    refinedBtn.className = `model-switch-btn ${
+      this.currentModelType === "refined" ? "active" : ""
+    }`;
+    refinedBtn.onclick = () => this.switchModel("refined");
 
-    const draftBtn = document.createElement('button');
-    draftBtn.textContent = 'Draft';
-    draftBtn.className = `model-switch-btn ${this.currentModelType === 'draft' ? 'active' : ''}`;
-    draftBtn.onclick = () => this.switchModel('draft');
+    const draftBtn = document.createElement("button");
+    draftBtn.textContent = "Draft";
+    draftBtn.className = `model-switch-btn ${
+      this.currentModelType === "draft" ? "active" : ""
+    }`;
+    draftBtn.onclick = () => this.switchModel("draft");
 
     controlsDiv.appendChild(refinedBtn);
     controlsDiv.appendChild(draftBtn);
-    
+
     // Remove existing controls
-    const existing = this.viewerArea.querySelector('.model-switch-controls');
+    const existing = this.viewerArea.querySelector(".model-switch-controls");
     if (existing) existing.remove();
-    
+
     this.viewerArea.appendChild(controlsDiv);
 
     // Add styles
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = `
       .model-switch-btn {
         background: rgba(255, 255, 255, 0.9);
@@ -338,8 +367,8 @@ class TextTo3DApp {
         border-color: #667eea;
       }
     `;
-    if (!document.head.querySelector('#model-switch-styles')) {
-      style.id = 'model-switch-styles';
+    if (!document.head.querySelector("#model-switch-styles")) {
+      style.id = "model-switch-styles";
       document.head.appendChild(style);
     }
   }
@@ -349,11 +378,14 @@ class TextTo3DApp {
     if (!url) return;
 
     await this.displayModel(url, modelType);
-    
+
     // Update button states
-    const buttons = this.viewerArea.querySelectorAll('.model-switch-btn');
-    buttons.forEach(btn => {
-      btn.classList.toggle('active', btn.textContent.toLowerCase() === modelType);
+    const buttons = this.viewerArea.querySelectorAll(".model-switch-btn");
+    buttons.forEach((btn) => {
+      btn.classList.toggle(
+        "active",
+        btn.textContent.toLowerCase() === modelType
+      );
     });
   }
 
@@ -362,45 +394,46 @@ class TextTo3DApp {
       e.preventDefault();
       e.stopPropagation();
     };
-  
+
     // Prevent default drag behaviors globally (IMPORTANT)
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
       document.addEventListener(eventName, preventDefaults, false);
     });
-  
+
     // Highlight drop area
-    ['dragenter', 'dragover'].forEach(eventName => {
+    ["dragenter", "dragover"].forEach((eventName) => {
       this.fileUploadArea?.addEventListener(eventName, () => {
-        this.fileUploadArea?.classList.add('dragover');
+        this.fileUploadArea?.classList.add("dragover");
       });
     });
-  
-    ['dragleave', 'drop'].forEach(eventName => {
+
+    ["dragleave", "drop"].forEach((eventName) => {
       this.fileUploadArea?.addEventListener(eventName, () => {
-        this.fileUploadArea?.classList.remove('dragover');
+        this.fileUploadArea?.classList.remove("dragover");
       });
     });
-  
+
     // Handle dropped files
-    this.fileUploadArea?.addEventListener('drop', (e) => {
+    this.fileUploadArea?.addEventListener("drop", (e) => {
       const files = e.dataTransfer.files;
       this.handleFiles(files, true); // true = auto-display
     });
   }
 
   autoResizeTextarea() {
-    this.chatInput?.addEventListener('input', () => {
-      this.chatInput.style.height = 'auto';
-      this.chatInput.style.height = Math.min(this.chatInput.scrollHeight, 120) + 'px';
+    this.chatInput?.addEventListener("input", () => {
+      this.chatInput.style.height = "auto";
+      this.chatInput.style.height =
+        Math.min(this.chatInput.scrollHeight, 120) + "px";
     });
   }
 
   setupResize() {
-    this.resizeHandle?.addEventListener('mousedown', (e) => {
+    this.resizeHandle?.addEventListener("mousedown", (e) => {
       this.isResizing = true;
-      this.resizeHandle.classList.add('dragging');
-      document.addEventListener('mousemove', this.handleResize.bind(this));
-      document.addEventListener('mouseup', this.stopResize.bind(this));
+      this.resizeHandle.classList.add("dragging");
+      document.addEventListener("mousemove", this.handleResize.bind(this));
+      document.addEventListener("mouseup", this.stopResize.bind(this));
       e.preventDefault();
     });
   }
@@ -413,11 +446,14 @@ class TextTo3DApp {
     const maxChatWidth = 800;
     const minViewerWidth = 400;
 
-    if (newChatWidth >= minChatWidth && newChatWidth <= maxChatWidth &&
-        (containerRect.width - newChatWidth) >= minViewerWidth) {
-      this.chatSection.style.width = newChatWidth + 'px';
-      this.resizeHandle.style.right = newChatWidth + 'px';
-      
+    if (
+      newChatWidth >= minChatWidth &&
+      newChatWidth <= maxChatWidth &&
+      containerRect.width - newChatWidth >= minViewerWidth
+    ) {
+      this.chatSection.style.width = newChatWidth + "px";
+      this.resizeHandle.style.right = newChatWidth + "px";
+
       // Update renderer size
       setTimeout(() => this.onWindowResize(), 100);
     }
@@ -425,9 +461,9 @@ class TextTo3DApp {
 
   stopResize() {
     this.isResizing = false;
-    this.resizeHandle.classList.remove('dragging');
-    document.removeEventListener('mousemove', this.handleResize);
-    document.removeEventListener('mouseup', this.stopResize);
+    this.resizeHandle.classList.remove("dragging");
+    document.removeEventListener("mousemove", this.handleResize);
+    document.removeEventListener("mouseup", this.stopResize);
   }
 
   toggleModelInfo() {
@@ -439,14 +475,14 @@ class TextTo3DApp {
   }
 
   showModelInfo() {
-    this.modelInfo.classList.add('show');
-    this.infoToggle.classList.add('active');
+    this.modelInfo.classList.add("show");
+    this.infoToggle.classList.add("active");
     this.modelInfoVisible = true;
   }
 
   hideModelInfo() {
-    this.modelInfo.classList.remove('show');
-    this.infoToggle.classList.remove('active');
+    this.modelInfo.classList.remove("show");
+    this.infoToggle.classList.remove("active");
     this.modelInfoVisible = false;
   }
 
@@ -460,33 +496,39 @@ class TextTo3DApp {
     this.displayFilePreview();
 
     // Auto-display first .glb file if present
-    const glbFile = this.currentFiles.findIndex(file => file.name.toLowerCase().endsWith('.glb'));
-    if (glbFile && autoDisplay) {
+    const glbFileIndex = this.currentFiles.findIndex((file) =>
+      file.name.toLowerCase().endsWith(".glb")
+    );
+    if (glbFileIndex !== -1 && autoDisplay) {
+      const glbFile = this.currentFiles[glbFileIndex];
       const localUrl = URL.createObjectURL(glbFile);
       this.modelUrls.refined = localUrl;
-      this.currentModelType = 'refined';
-      this.displayModel(localUrl, 'refined');
+      this.currentModelType = "refined";
+      this.displayModel(localUrl, "refined");
       this.addModelSwitchControls();
-      this.addMessage(`Displaying uploaded GLB file: ${glbFile.name}`, 'system');
+      this.addMessage(
+        `Displaying uploaded GLB file: ${glbFile.name}`,
+        "system"
+      );
     }
   }
 
   clearFiles() {
     this.currentFiles = [];
-    if (this.fileInput) this.fileInput.value = '';
-    this.filePreview?.classList.remove('show');
+    if (this.fileInput) this.fileInput.value = "";
+    this.filePreview?.classList.remove("show");
   }
 
   formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
 
   addMessage(text, type) {
-    const messageDiv = document.createElement('div');
+    const messageDiv = document.createElement("div");
     messageDiv.className = `message ${type}`;
     messageDiv.textContent = text;
     this.chatMessages.appendChild(messageDiv);
@@ -495,23 +537,25 @@ class TextTo3DApp {
 
   displayFilePreview() {
     if (this.currentFiles.length === 0) {
-      this.filePreview?.classList.remove('show');
+      this.filePreview?.classList.remove("show");
       return;
     }
 
     if (!this.filePreview) return;
-    this.filePreview.classList.add('show');
+    this.filePreview.classList.add("show");
     this.filePreview.innerHTML = `
       <strong>📁 Selected files:</strong><br>
-      ${this.currentFiles.map(file => `📄 ${file.name} (${this.formatFileSize(file.size)})`).join('<br>')}
+      ${this.currentFiles
+        .map((file) => `📄 ${file.name} (${this.formatFileSize(file.size)})`)
+        .join("<br>")}
       <button type="button" onclick="app.clearFiles()" style="margin-left: 10px; background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;">✕ Clear</button>
     `;
   }
 
   showTypingIndicator() {
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'typing-indicator';
-    typingDiv.id = 'typing-indicator';
+    const typingDiv = document.createElement("div");
+    typingDiv.className = "typing-indicator";
+    typingDiv.id = "typing-indicator";
     typingDiv.innerHTML = `
       <span style="font-weight: 500;">AI is thinking</span>
       <div class="typing-dots">
@@ -525,26 +569,26 @@ class TextTo3DApp {
   }
 
   hideTypingIndicator() {
-    const typingIndicator = document.getElementById('typing-indicator');
+    const typingIndicator = document.getElementById("typing-indicator");
     if (typingIndicator) {
       typingIndicator.remove();
     }
   }
 
   showProgress() {
-    this.progressBar?.classList.add('show');
+    this.progressBar?.classList.add("show");
     this.updateProgress(0);
   }
 
   hideProgress() {
     setTimeout(() => {
-      this.progressBar?.classList.remove('show');
+      this.progressBar?.classList.remove("show");
     }, 500);
   }
 
   updateProgress(percentage) {
     if (this.progressFill) {
-      this.progressFill.style.width = percentage + '%';
+      this.progressFill.style.width = percentage + "%";
     }
   }
 
@@ -555,13 +599,18 @@ class TextTo3DApp {
     if (this.isGenerating) return;
 
     if (message) {
-      this.addMessage(message, 'user');
-      this.chatInput.value = '';
-      this.chatInput.style.height = 'auto';
+      this.addMessage(message, "user");
+      this.chatInput.value = "";
+      this.chatInput.style.height = "auto";
     }
 
     if (this.currentFiles.length > 0) {
-      this.addMessage(`📎 Uploaded ${this.currentFiles.length} file(s): ${this.currentFiles.map(f => f.name).join(', ')}`, 'system');
+      this.addMessage(
+        `📎 Uploaded ${this.currentFiles.length} file(s): ${this.currentFiles
+          .map((f) => f.name)
+          .join(", ")}`,
+        "system"
+      );
     }
 
     this.isGenerating = true;
@@ -578,16 +627,16 @@ class TextTo3DApp {
     }, 200);
 
     try {
-      const response = await fetch('http://localhost:5050/txtgen3d', {
-        method: 'POST',
+      const response = await fetch("http://localhost:5050/txtgen3d", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           text: message,
           artstyle: "realistic",
-          save_path: "3d_files"
-        })
+          save_path: "3d_files",
+        }),
       });
 
       clearInterval(progressInterval);
@@ -599,30 +648,44 @@ class TextTo3DApp {
 
       const result = await response.json();
 
-      if (result.status === 'success') {
-        this.addMessage(`✅ Successfully generated 3D model: ${result.message}`, 'bot');
+      if (result.status === "success") {
+        this.addMessage(
+          `✅ Successfully generated 3D model: ${result.message}`,
+          "bot"
+        );
 
         this.modelUrls.refined = `http://localhost:5050/models/refined_model.glb`;
         this.modelUrls.draft = `http://localhost:5050/models/draft_model.glb`;
-        await this.displayModel(this.modelUrls.refined, 'refined');
-          
+        await this.displayModel(this.modelUrls.refined, "refined");
+
         // Add model switching controls
         this.addModelSwitchControls();
-          
-        this.addMessage('🎮 Use your mouse to rotate the model and scroll to zoom. Switch between Draft and Refined versions using the buttons!', 'system');
-        
+
+        this.addMessage(
+          "🎮 Use your mouse to rotate the model and scroll to zoom. Switch between Draft and Refined versions using the buttons!",
+          "system"
+        );
       } else {
-        this.addMessage(`❌ Generation failed: ${result.message || 'Unknown error'}`, 'bot');
+        this.addMessage(
+          `❌ Generation failed: ${result.message || "Unknown error"}`,
+          "bot"
+        );
       }
     } catch (error) {
       clearInterval(progressInterval);
-      console.error('API call failed:', error);
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        this.addMessage('❌ Cannot connect to the server. Please make sure the backend is running on localhost:5050.', 'bot');
-      } else if (error.message.includes('HTTP error')) {
-        this.addMessage(`❌ Server error: ${error.message}`, 'bot');
+      console.error("API call failed:", error);
+      if (error.name === "TypeError" && error.message.includes("fetch")) {
+        this.addMessage(
+          "❌ Cannot connect to the server. Please make sure the backend is running on localhost:5050.",
+          "bot"
+        );
+      } else if (error.message.includes("HTTP error")) {
+        this.addMessage(`❌ Server error: ${error.message}`, "bot");
       } else {
-        this.addMessage('❌ Sorry, there was an error processing your request. Please try again.', 'bot');
+        this.addMessage(
+          "❌ Sorry, there was an error processing your request. Please try again.",
+          "bot"
+        );
       }
     } finally {
       this.isGenerating = false;
@@ -635,19 +698,25 @@ class TextTo3DApp {
 
   downloadModel() {
     if (!this.modelUrls.refined && !this.modelUrls.draft) {
-      this.addMessage('❌ No model available for download. Please generate a model first.', 'bot');
+      this.addMessage(
+        "❌ No model available for download. Please generate a model first.",
+        "bot"
+      );
       return;
     }
 
     const currentUrl = this.modelUrls[this.currentModelType];
     if (currentUrl) {
       // Create a temporary link to download the current model
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = currentUrl;
       link.download = `${this.currentModelType}_model.glb`;
       link.click();
-      
-      this.addMessage(`🎉 Downloading ${this.currentModelType} model...`, 'system');
+
+      this.addMessage(
+        `🎉 Downloading ${this.currentModelType} model...`,
+        "system"
+      );
     }
   }
 }
@@ -657,5 +726,8 @@ const app = new TextTo3DApp();
 
 // Add welcome message after a delay
 setTimeout(() => {
-  app.addMessage("💡 Pro tip: Try describing objects like 'futuristic spaceship', 'cozy wooden cabin', or 'fantasy sword' for best results!", 'bot');
+  app.addMessage(
+    "💡 Pro tip: Try describing objects like 'futuristic spaceship', 'cozy wooden cabin', or 'fantasy sword' for best results!",
+    "bot"
+  );
 }, 2000);

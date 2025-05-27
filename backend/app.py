@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from txt_to_3d import txt_gen_3d
 from images_to_image import images_gen_image
@@ -66,13 +66,13 @@ def remixgen3d():
 @app.route('/models/<filename>')
 def serve_model(filename):
     try:
-        file_path = os.path.join('3d_files', filename)
+        file_path = os.path.join(os.getcwd(), '3d_files', filename)
         if os.path.exists(file_path):
             return send_file(file_path, as_attachment=False)
         else:
-            return {"error": "File not found"}, 404
+            return jsonify({"error": "File not found"}), 404
     except Exception as e:
-        return {"error": str(e)}, 500
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
