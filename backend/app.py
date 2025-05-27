@@ -85,10 +85,16 @@ def upload_glb():
         return jsonify(status="fail", message="Empty filename"), 400
 
     filename = secure_filename(file.filename)
-    save_path = os.path.join("3d_files", filename)
+    save_dir = os.path.join(os.getcwd(), "3d_files")
+
+    # ✅ Create the directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+
+    save_path = os.path.join(save_dir, filename)
     file.save(save_path)
 
     return jsonify(status="success", filename=filename)
+
 
 
 if __name__ == '__main__':
