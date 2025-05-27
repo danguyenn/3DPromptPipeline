@@ -62,6 +62,17 @@ def remixgen3d():
         return jsonify(status="success", message="Rendering complete.")
     except Exception as e:
         return jsonify(status="error", message=str(e)), 500
+    
+@app.route('/models/<filename>')
+def serve_model(filename):
+    try:
+        file_path = os.path.join('3d_files', filename)
+        if os.path.exists(file_path):
+            return send_file(file_path, as_attachment=False)
+        else:
+            return {"error": "File not found"}, 404
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
