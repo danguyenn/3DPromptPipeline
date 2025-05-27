@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>3D AI Studio</title>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/loaders/GLTFLoader.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
@@ -839,9 +841,6 @@
       <div class="viewer-header">
         <h1>3D Model Viewer</h1>
         <div class="controls">
-          <button class="info-toggle" id="info-toggle" title="Toggle Model Info">ℹ️</button>
-          <button class="btn" id="reset-view">🔄 Reset View</button>
-          <button class="btn" id="wireframe-toggle">📐 Wireframe</button>
           <button class="btn primary" id="download-model">💾 Download</button>
         </div>
       </div>
@@ -875,14 +874,6 @@
       </div>
       
       <div class="chat-input-area">
-        <div class="file-upload-area" id="file-upload-area">
-          <div class="upload-icon">📎</div>
-          <div class="upload-text">
-            Click to upload files (Images, 3D models)
-          </div>
-          <input type="file" class="file-input" id="file-input" accept=".png,.jpg,.jpeg,.obj,.stl,.glb,.gltf" multiple>
-        </div>
-        
         <div class="file-preview" id="file-preview"></div>
         
         <div class="progress-bar" id="progress-bar">
@@ -1075,39 +1066,78 @@
         
         const message = this.chatInput.value.trim();
         if (!message && this.currentFiles.length === 0) return;
-
+    
         if (this.isGenerating) return;
-
+    
         // Add user message
         if (message) {
-          this.addMessage(message, 'user');
-          this.chatInput.value = '';
-          this.chatInput.style.height = 'auto';
+            this.addMessage(message, 'user');
+            this.chatInput.value = '';
+            this.chatInput.style.height = 'auto';
         }
-
+    
         // Show file upload info
         if (this.currentFiles.length > 0) {
-          this.addMessage(`📎 Uploaded ${this.currentFiles.length} file(s): ${this.currentFiles.map(f => f.name).join(', ')}`, 'system');
+            this.addMessage(`📎 Uploaded ${this.currentFiles.length} file(s): ${this.currentFiles.map(f => f.name).join(', ')}`, 'system');
         }
-
+    
         this.isGenerating = true;
         this.sendBtn.disabled = true;
         this.showTypingIndicator();
         this.showProgress();
-
+    
         try {
-          // Simulate API call - replace with actual backend call
-          await this.callAPI(message, this.currentFiles);
+            // Make the actual API call to your backend
+            const response = await fetch('http://localhost:5050/txtgen3d', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: message,
+                    artstyle: "realistic", // You might want to make this configurable
+                    save_path: "3d_files"
+                })
+            });
+    
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+    
+            const result = await response.json();
+            
+            // Handle the successful response
+            // You'll need to adapt this based on what your API returns
+            if (result.success) {
+                this.addMessage(`✅ Successfully generated 3D model: ${result.message || 'Model created successfully'}`, 'bot');
+                
+                // If your API returns a file path or URL, you could display it
+                if (result.file_path) {
+                    this.addMessage(`📁 File saved to: ${result.file_path}`, 'system');
+                }
+            } else {
+                this.addMessage(`❌ Generation failed: ${result.error || 'Unknown error'}`, 'bot');
+            }
+    
         } catch (error) {
-          this.addMessage('Sorry, there was an error processing your request. Please try again.', 'bot');
+            console.error('API call failed:', error);
+            
+            // More specific error handling
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                this.addMessage('❌ Cannot connect to the server. Please make sure the backend is running on localhost:5050.', 'bot');
+            } else if (error.message.includes('HTTP error')) {
+                this.addMessage(`❌ Server error: ${error.message}`, 'bot');
+            } else {
+                this.addMessage('❌ Sorry, there was an error processing your request. Please try again.', 'bot');
+            }
         } finally {
-          this.isGenerating = false;
-          this.sendBtn.disabled = false;
-          this.hideTypingIndicator();
-          this.hideProgress();
-          this.clearFiles();
+            this.isGenerating = false;
+            this.sendBtn.disabled = false;
+            this.hideTypingIndicator();
+            this.hideProgress();
+            this.clearFiles();
         }
-      }
+    }
 
       async callAPI(message, files) {
         // Replace this with your actual API endpoint
@@ -1225,10 +1255,56 @@
       }
 
       load3DModel(modelUrl) {
-        // Implement actual 3D model loading here
-        // You can use Three.js or other 3D libraries
-        console.log('Loading 3D model from:', modelUrl);
+        this.viewerArea.innerHTML = '';
+      
+        const canvas = document.createElement('canvas');
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.id = 'three-canvas';
+        this.viewerArea.appendChild(canvas);
+      
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+          45,
+          this.viewerArea.clientWidth / this.viewerArea.clientHeight,
+          0.1,
+          1000
+        );
+      
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+        renderer.setSize(this.viewerArea.clientWidth, this.viewerArea.clientHeight);
+        window.addEventListener('resize', () => {
+          camera.aspect = this.viewerArea.clientWidth / this.viewerArea.clientHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(this.viewerArea.clientWidth, this.viewerArea.clientHeight);
+        });
+      
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+        scene.add(ambientLight);
+      
+        const loader = new THREE.GLTFLoader();
+        loader.load(modelUrl, (gltf) => {
+          const model = gltf.scene;
+          scene.add(model);
+      
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3()).length();
+          const center = box.getCenter(new THREE.Vector3());
+      
+          camera.position.set(center.x, center.y, size * 1.5);
+          camera.lookAt(center);
+      
+          const animate = () => {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+          };
+          animate();
+        }, undefined, (error) => {
+          console.error('Error loading model:', error);
+          this.addMessage('⚠️ Failed to load the 3D model.', 'bot');
+        });
       }
+      
 
       showTypingIndicator() {
         const typingDiv = document.createElement('div');

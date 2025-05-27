@@ -21,9 +21,8 @@ RUN pip install requests ipython openai numpy pyvista
 #for loading env
 RUN pip install python-dotenv
 
-# Copy backend and frontend
-COPY backend/ backend/
-COPY frontend/ frontend/
+# Copy application code
+COPY . .
 
 # Expose port
 EXPOSE 5000
