@@ -15,7 +15,8 @@ def create_draft_task(image_path, headers):
     payload = {
     #"mode": "preview",
     "image_url": f'data:image/png;base64,{encode_image(image_path)}',
-    "enable_pbr": True,
+    #"enable_pbr": True,
+    "enable_pbr": False,
     "should_remesh": True,
     "should_texture": True,
     }
