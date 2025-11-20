@@ -6,8 +6,8 @@
   <title>3D AI Studio</title>
   <link rel="stylesheet" href="styles.css" />
 
-   <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
-   <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
   <div id="app-container" class="app-container">
@@ -19,19 +19,23 @@
       <header class="viewer-header">
         <h1>3D Model Viewer</h1>
         <div class="controls">
-          <button class="info-toggle" id="info-toggle" title="Model Information">ℹ️</button>
-          <button class="btn primary" id="download-model" title="Download Model">💾 Download</button>
+          <button class="info-toggle" id="info-toggle" title="Model Information">
+            Info
+          </button>
+          <button class="btn primary" id="download-model" title="Download Model">
+            Download Model
+          </button>
         </div>
       </header>
-      
+
       <main class="viewer-area" id="viewer-area">
         <div class="placeholder">
-          <div class="placeholder-icon">🎲</div>
+          <div class="placeholder-icon"></div>
           <p>Your 3D model will appear here</p>
-          <small>Start chatting to generate your first model!</small>
+          <small>Describe a model or upload a GLB file to begin.</small>
         </div>
       </main>
-      
+
       <!-- Model Information Panel -->
       <aside class="model-info" id="model-info">
         <button class="close-btn" id="close-info" title="Close">×</button>
@@ -44,59 +48,70 @@
     <section class="chat-section">
       <header class="chat-header">
         <h2>AI Assistant</h2>
-        <p class="chat-subtitle">Describe your 3D model idea</p>
+        <p class="chat-subtitle">Describe your 3D model idea or upload a reference model.</p>
       </header>
-      
+
       <div class="chat-messages" id="chat-messages">
         <div class="message bot">
-          Hello! I'm your 3D modeling assistant. Describe what you'd like to create, and I'll help you generate a 3D model. You can also upload reference images or existing 3D files! ✨
+          Welcome. Describe the 3D asset you want to create, or upload an existing GLB model to inspect or remix.
         </div>
       </div>
-      
+
       <div class="chat-input-area">
-        <!-- File Upload Area -->
+        <!-- File Upload Area (single place) -->
         <div class="file-upload-area" id="file-upload-area">
-          <div class="upload-icon">📁</div>
-          <div class="upload-text">Click to upload files or drag & drop</div>
+          <div class="upload-icon"></div>
+          <div class="upload-text">Click to upload a 3D model or drag and drop files</div>
         </div>
-        
+
         <!-- Hidden File Input -->
-        <input 
-          type="file" 
-          id="file-input" 
-          class="file-input" 
-          multiple 
-          accept=".jpg,.jpeg,.png,.gif,.obj,.stl,.ply,.3ds,.fbx,.dae,.blend,.pdf,.txt,.doc,.docx,.glb"
-        >
-        
+        <input
+          type="file"
+          id="file-input"
+          class="file-input"
+          multiple
+          accept=".glb,.gltf,.obj,.stl,.ply,.3ds,.fbx,.dae,.blend"
+        />
+
         <!-- File Preview Area -->
         <div class="file-preview" id="file-preview"></div>
-        
+
         <!-- Progress Bar -->
         <div class="progress-bar" id="progress-bar">
           <div class="progress-fill" id="progress-fill"></div>
         </div>
-        
+
         <!-- Chat Input Form -->
         <form class="chat-input-form" id="chat-form">
+          <button
+            type="button"
+            id="voice-btn"
+            class="icon-button voice-button"
+            title="Record voice prompt"
+          >
+            <span class="icon-label">Mic</span>
+          </button>
+
           <div class="input-wrapper">
-            <textarea 
-              class="chat-input" 
-              id="chat-input" 
-              placeholder="Describe your 3D model (e.g., 'a medieval castle with towers')"
+            <textarea
+              class="chat-input"
+              id="chat-input"
+              placeholder="Describe your 3D model (for example: “a realistic sci-fi helmet with a glass visor”)"
               rows="1"
               maxlength="1000"
             ></textarea>
+            <div id="stt-status" class="stt-status"></div>
           </div>
+
           <button type="submit" class="send-btn" id="send-btn">
-            <span>Send</span> ✈️
+            <span>Send</span>
           </button>
         </form>
       </div>
     </section>
   </div>
 
-  <!-- Load the app.js script at the end -->
+  <!-- App logic -->
   <script src="app.js"></script>
 </body>
 </html>

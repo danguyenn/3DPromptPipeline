@@ -28,7 +28,7 @@ def gen_image(client, text_prompt, encoded_images, save_dir):
      })
 
   response = client.responses.create(
-      model="gpt-4.1",
+      model="gpt-5.1",
       input=[
           {
               "role": "user",
@@ -55,7 +55,7 @@ def gen_image(client, text_prompt, encoded_images, save_dir):
 def images_gen_image(text, image_dir, save_path):
     os.makedirs(save_path, exist_ok=True)
     load_dotenv()
-    api_key = os.getenv("OPENAI_API")
+    api_key = os.getenv("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
     image_paths = get_image_files(image_dir)

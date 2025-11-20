@@ -1,4 +1,3 @@
-// app.js
 class TextTo3DApp {
   constructor() {
     this.currentFiles = [];
@@ -8,10 +7,16 @@ class TextTo3DApp {
     this.scene = null;
     this.camera = null;
     this.renderer = null;
-    this.controls = null;
     this.currentModel = null;
     this.modelUrls = { refined: null, draft: null };
-    this.currentModelType = "refined"; // 'refined' or 'draft'
+    this.currentModelType = "refined";
+
+    // Speech to text state
+    this.mediaRecorder = null;
+    this.audioChunks = [];
+    this.audioStream = null;
+    this.isRecording = false;
+
     this.initializeElements();
     this.setupEventListeners();
     this.setupDragAndDrop();
@@ -38,14 +43,16 @@ class TextTo3DApp {
     this.chatSection = document.querySelector(".chat-section");
     this.infoToggle = document.getElementById("info-toggle");
     this.closeInfo = document.getElementById("close-info");
+    this.voiceBtn = document.getElementById("voice-btn");
+    this.sttStatus = document.getElementById("stt-status");
   }
 
+  /* ---------- Three.js setup ---------- */
+
   initThreeJS() {
-    // Create scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0xf5f5f5);
 
-    // Create camera
     this.camera = new THREE.PerspectiveCamera(
       75,
       this.viewerArea.clientWidth / this.viewerArea.clientHeight,
@@ -54,7 +61,6 @@ class TextTo3DApp {
     );
     this.camera.position.set(0, 0, 5);
 
-    // Create renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(
       this.viewerArea.clientWidth,
@@ -66,24 +72,16 @@ class TextTo3DApp {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
 
-    // Add lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(10, 10, 5);
     directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
     this.scene.add(directionalLight);
 
-    // Add orbit controls (manual implementation since OrbitControls isn't available)
     this.setupMouseControls();
-
-    // Handle window resize
     window.addEventListener("resize", () => this.onWindowResize());
-
-    // Start render loop
     this.animate();
   }
 
@@ -104,6 +102,10 @@ class TextTo3DApp {
       isMouseDown = false;
     });
 
+    this.viewerArea.addEventListener("mouseleave", () => {
+      isMouseDown = false;
+    });
+
     this.viewerArea.addEventListener("mousemove", (e) => {
       if (!isMouseDown || !this.currentModel) return;
 
@@ -120,7 +122,6 @@ class TextTo3DApp {
       mouseY = e.clientY;
     });
 
-    // Mouse wheel for zoom
     this.viewerArea.addEventListener("wheel", (e) => {
       e.preventDefault();
       if (!this.currentModel) return;
@@ -156,51 +157,32 @@ class TextTo3DApp {
       const loader = new THREE.GLTFLoader();
       loader.load(
         url,
-        (gltf) => {
-          resolve(gltf.scene);
-        },
-        (progress) => {
-          // Handle loading progress if needed
-          console.log(
-            "Loading progress:",
-            (progress.loaded / progress.total) * 100 + "%"
-          );
-        },
-        (error) => {
-          console.error("Error loading GLB model:", error);
-          reject(error);
-        }
+        (gltf) => resolve(gltf.scene),
+        undefined,
+        (error) => reject(error)
       );
     });
   }
 
   async displayModel(modelUrl, modelType = "refined") {
     try {
-      // Clear existing model
       if (this.currentModel) {
         this.scene.remove(this.currentModel);
       }
 
-      // Show loading state
       this.showModelLoading();
-
-      // Load new model
       const model = await this.loadGLBModel(modelUrl);
 
-      // Center and scale the model
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
 
-      // Center the model
       model.position.sub(center);
 
-      // Scale to fit in view
       const maxSize = Math.max(size.x, size.y, size.z);
       const scale = 2 / maxSize;
       model.scale.setScalar(scale);
 
-      // Enable shadows
       model.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -212,25 +194,20 @@ class TextTo3DApp {
       this.currentModelType = modelType;
       this.scene.add(model);
 
-      // Clear the placeholder and add the canvas
       this.clearPlaceholder();
       if (!this.viewerArea.contains(this.renderer.domElement)) {
         this.viewerArea.appendChild(this.renderer.domElement);
       }
 
-      // Update model info
       this.updateModelInfo(modelType, size);
-
       this.addMessage(
-        `✅ ${
-          modelType === "refined" ? "Refined" : "Draft"
-        } model loaded successfully!`,
+        `${modelType === "refined" ? "Refined" : "Draft"} model loaded.`,
         "system"
       );
     } catch (error) {
       console.error("Error displaying model:", error);
       this.addMessage(
-        `❌ Error loading ${modelType} model: ${error.message}`,
+        `Error loading ${modelType} model: ${error.message}`,
         "bot"
       );
       this.showModelError();
@@ -241,9 +218,8 @@ class TextTo3DApp {
     const placeholder = this.viewerArea.querySelector(".placeholder");
     if (placeholder) {
       placeholder.innerHTML = `
-        <div class="loading-spinner"></div>
-        <p>Loading 3D Model...</p>
-        <small>Please wait while we prepare your model</small>
+        <p>Loading 3D model...</p>
+        <small>Please wait while the model is prepared.</small>
       `;
     }
   }
@@ -252,9 +228,8 @@ class TextTo3DApp {
     const placeholder = this.viewerArea.querySelector(".placeholder");
     if (placeholder) {
       placeholder.innerHTML = `
-        <div class="placeholder-icon">❌</div>
-        <p>Failed to load 3D model</p>
-        <small>Please try generating a new model</small>
+        <p>Failed to load the 3D model.</p>
+        <small>Please try generating or uploading a new model.</small>
       `;
     }
   }
@@ -268,202 +243,36 @@ class TextTo3DApp {
 
   updateModelInfo(modelType, size) {
     const modelDetails = document.getElementById("model-details");
-    if (modelDetails) {
-      modelDetails.innerHTML = `
-        <strong>Model Type:</strong> ${
-          modelType === "refined" ? "Refined Quality" : "Draft Quality"
-        }<br>
-        <strong>Dimensions:</strong> ${size.x.toFixed(2)} × ${size.y.toFixed(
-        2
-      )} × ${size.z.toFixed(2)}<br>
-        <strong>Vertices:</strong> ${this.getVertexCount()}<br>
-        <strong>Format:</strong> GLB (Binary glTF)<br>
-        <strong>Status:</strong> Ready for download
-      `;
-    }
+    if (!modelDetails) return;
+    modelDetails.innerHTML = `
+      <strong>Model type:</strong> ${
+        modelType === "refined" ? "Refined quality" : "Draft quality"
+      }<br/>
+      <strong>Dimensions:</strong> ${size.x.toFixed(2)} × ${size.y.toFixed(
+      2
+    )} × ${size.z.toFixed(2)}<br/>
+      <strong>Format:</strong> GLB (binary glTF)<br/>
+      <strong>Status:</strong> Ready for inspection and download
+    `;
   }
 
-  getVertexCount() {
-    if (!this.currentModel) return 0;
-
-    let vertexCount = 0;
-    this.currentModel.traverse((child) => {
-      if (child.isMesh && child.geometry) {
-        vertexCount += child.geometry.attributes.position.count;
-      }
-    });
-    return vertexCount.toLocaleString();
-  }
+  /* ---------- UI bindings ---------- */
 
   setupEventListeners() {
     this.chatForm.addEventListener("submit", (e) => this.handleSubmit(e));
     this.fileUploadArea?.addEventListener("click", () =>
       this.fileInput?.click()
     );
-    this.fileInput?.addEventListener("change", (e) => this.handleFileSelect(e));
+    this.fileInput?.addEventListener("change", (e) =>
+      this.handleFileSelect(e)
+    );
     this.downloadBtn?.addEventListener("click", () => this.downloadModel());
     this.infoToggle?.addEventListener("click", () => this.toggleModelInfo());
     this.closeInfo?.addEventListener("click", () => this.hideModelInfo());
-  }
 
-  // Add model switching functionality
-  addModelSwitchControls() {
-    if (!this.modelUrls.refined || !this.modelUrls.draft) return;
-
-    const controlsDiv = document.createElement("div");
-    controlsDiv.className = "model-switch-controls";
-    controlsDiv.style.cssText = `
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      display: flex;
-      gap: 8px;
-      z-index: 10;
-    `;
-
-    const refinedBtn = document.createElement("button");
-    refinedBtn.textContent = "Refined";
-    refinedBtn.className = `model-switch-btn ${
-      this.currentModelType === "refined" ? "active" : ""
-    }`;
-    refinedBtn.onclick = () => this.switchModel("refined");
-
-    const draftBtn = document.createElement("button");
-    draftBtn.textContent = "Draft";
-    draftBtn.className = `model-switch-btn ${
-      this.currentModelType === "draft" ? "active" : ""
-    }`;
-    draftBtn.onclick = () => this.switchModel("draft");
-
-    controlsDiv.appendChild(refinedBtn);
-    controlsDiv.appendChild(draftBtn);
-
-    // Remove existing controls
-    const existing = this.viewerArea.querySelector(".model-switch-controls");
-    if (existing) existing.remove();
-
-    this.viewerArea.appendChild(controlsDiv);
-
-    // Add styles
-    const style = document.createElement("style");
-    style.textContent = `
-      .model-switch-btn {
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid #dee2e6;
-        padding: 8px 16px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: all 0.3s ease;
-      }
-      .model-switch-btn:hover {
-        background: white;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-      .model-switch-btn.active {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border-color: #667eea;
-      }
-    `;
-    if (!document.head.querySelector("#model-switch-styles")) {
-      style.id = "model-switch-styles";
-      document.head.appendChild(style);
+    if (this.voiceBtn) {
+      this.voiceBtn.addEventListener("click", () => this.toggleVoiceInput());
     }
-  }
-
-  async switchModel(modelType) {
-    const url = this.modelUrls[modelType];
-    if (!url) return;
-
-    await this.displayModel(url, modelType);
-
-    // Update button states
-    const buttons = this.viewerArea.querySelectorAll(".model-switch-btn");
-    buttons.forEach((btn) => {
-      btn.classList.toggle(
-        "active",
-        btn.textContent.toLowerCase() === modelType
-      );
-    });
-  }
-
-  setupDragAndDrop() {
-    const preventDefaults = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    // Prevent default drag behaviors globally (IMPORTANT)
-    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
-      document.addEventListener(eventName, preventDefaults, false);
-    });
-
-    // Highlight drop area
-    ["dragenter", "dragover"].forEach((eventName) => {
-      this.fileUploadArea?.addEventListener(eventName, () => {
-        this.fileUploadArea?.classList.add("dragover");
-      });
-    });
-
-    ["dragleave", "drop"].forEach((eventName) => {
-      this.fileUploadArea?.addEventListener(eventName, () => {
-        this.fileUploadArea?.classList.remove("dragover");
-      });
-    });
-
-    // Handle dropped files
-    this.fileUploadArea?.addEventListener("drop", (e) => {
-      const files = e.dataTransfer.files;
-      this.handleFiles(files, true); // true = auto-display
-    });
-  }
-
-  autoResizeTextarea() {
-    this.chatInput?.addEventListener("input", () => {
-      this.chatInput.style.height = "auto";
-      this.chatInput.style.height =
-        Math.min(this.chatInput.scrollHeight, 120) + "px";
-    });
-  }
-
-  setupResize() {
-    this.resizeHandle?.addEventListener("mousedown", (e) => {
-      this.isResizing = true;
-      this.resizeHandle.classList.add("dragging");
-      document.addEventListener("mousemove", this.handleResize.bind(this));
-      document.addEventListener("mouseup", this.stopResize.bind(this));
-      e.preventDefault();
-    });
-  }
-
-  handleResize(e) {
-    if (!this.isResizing) return;
-    const containerRect = this.appContainer.getBoundingClientRect();
-    const newChatWidth = containerRect.right - e.clientX;
-    const minChatWidth = 350;
-    const maxChatWidth = 800;
-    const minViewerWidth = 400;
-
-    if (
-      newChatWidth >= minChatWidth &&
-      newChatWidth <= maxChatWidth &&
-      containerRect.width - newChatWidth >= minViewerWidth
-    ) {
-      this.chatSection.style.width = newChatWidth + "px";
-      this.resizeHandle.style.right = newChatWidth + "px";
-
-      // Update renderer size
-      setTimeout(() => this.onWindowResize(), 100);
-    }
-  }
-
-  stopResize() {
-    this.isResizing = false;
-    this.resizeHandle.classList.remove("dragging");
-    document.removeEventListener("mousemove", this.handleResize);
-    document.removeEventListener("mouseup", this.stopResize);
   }
 
   toggleModelInfo() {
@@ -486,6 +295,36 @@ class TextTo3DApp {
     this.modelInfoVisible = false;
   }
 
+  /* ---------- Drag & drop / file upload ---------- */
+
+  setupDragAndDrop() {
+    const preventDefaults = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+      document.addEventListener(eventName, preventDefaults, false);
+    });
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      this.fileUploadArea?.addEventListener(eventName, () => {
+        this.fileUploadArea?.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      this.fileUploadArea?.addEventListener(eventName, () => {
+        this.fileUploadArea?.classList.remove("dragover");
+      });
+    });
+
+    this.fileUploadArea?.addEventListener("drop", (e) => {
+      const files = e.dataTransfer.files;
+      this.handleFiles(files, true);
+    });
+  }
+
   handleFileSelect(e) {
     const files = e.target.files;
     this.handleFiles(files, true);
@@ -494,64 +333,48 @@ class TextTo3DApp {
   handleFiles(files, autoDisplay = false) {
     this.currentFiles = Array.from(files);
     this.displayFilePreview();
-  
+
     const glbFileIndex = this.currentFiles.findIndex((file) =>
       file.name.toLowerCase().endsWith(".glb")
     );
-  
+
     if (glbFileIndex !== -1 && autoDisplay) {
       const glbFile = this.currentFiles[glbFileIndex];
       const formData = new FormData();
       formData.append("file", glbFile);
-  
-      this.addMessage(`📤 Uploading ${glbFile.name}...`, "system");
-  
-      fetch("http://localhost:5050/upload", {
+
+      this.addMessage(`Uploading ${glbFile.name}...`, "system");
+
+      fetch("/upload", {
         method: "POST",
         body: formData,
       })
         .then((res) => res.json())
         .then(async (data) => {
           if (data.status === "success") {
-            const modelUrl = `http://localhost:5050/models/${data.filename}`;
+            const modelUrl = `/models/${data.filename}`;
             this.modelUrls.refined = modelUrl;
             this.currentModelType = "refined";
-  
             await this.displayModel(modelUrl, "refined");
-            this.addModelSwitchControls();
-            this.addMessage(`✅ Uploaded and displayed: ${data.filename}`, "system");
+            this.addMessage(
+              `Upload complete. Displayed model: ${data.filename}`,
+              "system"
+            );
           } else {
-            this.addMessage(`❌ Upload failed: ${data.message}`, "bot");
+            this.addMessage(`Upload failed: ${data.message}`, "bot");
           }
         })
         .catch((err) => {
           console.error("Upload error:", err);
-          this.addMessage(`❌ Upload error: ${err.message}`, "bot");
+          this.addMessage(`Upload error: ${err.message}`, "bot");
         });
     }
   }
-  
 
   clearFiles() {
     this.currentFiles = [];
     if (this.fileInput) this.fileInput.value = "";
     this.filePreview?.classList.remove("show");
-  }
-
-  formatFileSize(bytes) {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  }
-
-  addMessage(text, type) {
-    const messageDiv = document.createElement("div");
-    messageDiv.className = `message ${type}`;
-    messageDiv.textContent = text;
-    this.chatMessages.appendChild(messageDiv);
-    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
   }
 
   displayFilePreview() {
@@ -563,12 +386,39 @@ class TextTo3DApp {
     if (!this.filePreview) return;
     this.filePreview.classList.add("show");
     this.filePreview.innerHTML = `
-      <strong>📁 Selected files:</strong><br>
+      <strong>Selected files:</strong><br/>
       ${this.currentFiles
-        .map((file) => `📄 ${file.name} (${this.formatFileSize(file.size)})`)
-        .join("<br>")}
-      <button type="button" onclick="app.clearFiles()" style="margin-left: 10px; background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;">✕ Clear</button>
+        .map((file) => `${file.name} (${this.formatFileSize(file.size)})`)
+        .join("<br/>")}
+      <button type="button" onclick="app.clearFiles()" style="
+        margin-left: 8px;
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.8rem;
+      ">Clear</button>
     `;
+  }
+
+  formatFileSize(bytes) {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  }
+
+  /* ---------- Typing, progress, messages ---------- */
+
+  addMessage(text, type) {
+    const messageDiv = document.createElement("div");
+    messageDiv.className = `message ${type}`;
+    messageDiv.textContent = text;
+    this.chatMessages.appendChild(messageDiv);
+    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
   }
 
   showTypingIndicator() {
@@ -576,11 +426,9 @@ class TextTo3DApp {
     typingDiv.className = "typing-indicator";
     typingDiv.id = "typing-indicator";
     typingDiv.innerHTML = `
-      <span style="font-weight: 500;">AI is thinking</span>
+      <span style="font-weight: 500;">Assistant is preparing a response</span>
       <div class="typing-dots">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span></span><span></span><span></span>
       </div>
     `;
     this.chatMessages.appendChild(typingDiv);
@@ -589,9 +437,7 @@ class TextTo3DApp {
 
   hideTypingIndicator() {
     const typingIndicator = document.getElementById("typing-indicator");
-    if (typingIndicator) {
-      typingIndicator.remove();
-    }
+    if (typingIndicator) typingIndicator.remove();
   }
 
   showProgress() {
@@ -602,7 +448,7 @@ class TextTo3DApp {
   hideProgress() {
     setTimeout(() => {
       this.progressBar?.classList.remove("show");
-    }, 500);
+    }, 400);
   }
 
   updateProgress(percentage) {
@@ -611,85 +457,16 @@ class TextTo3DApp {
     }
   }
 
-  async sendRemixRequest(prompt) {
-    this.addMessage(prompt, "user");
-    this.chatInput.value="";
-    this.chatInput.style.height="auto";
-    
-    this.showTypingIndicator();
-    this.showProgress();
-    let progress = 0;
-  
-    const interval = setInterval(() => {
-      progress += Math.random() * 10;
-      this.updateProgress(Math.min(progress, 90));
-    }, 200);
-  
-    try {
-      if (!this.modelUrls.refined || !this.modelUrls.refined.includes("/models/")) {
-        throw new Error("No uploaded model found for remixing.");
-      }
-  
-      // Extract filename from the URL, e.g., /models/lion.glb → lion.glb
-      const filename = this.modelUrls.refined.split("/models/")[1];
-      const glb_path = `3d_files/${filename}`;
-  
-      const response = await fetch("http://localhost:5050/remixgen3d", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          glb_path: glb_path,
-          images_output: "images",
-          text: prompt,
-          image_output: "image",
-          threeD_output: "3d_files",
-        }),
-      });
-  
-      clearInterval(interval);
-      this.updateProgress(100);
-  
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-  
-      const result = await response.json();
-  
-      if (result.status === "success") {
-        this.addMessage("✅ Remix complete! Displaying new model...", "bot");
-  
-        const remixPath = "http://localhost:5050/models/remixed_draft_model.glb";
-        this.modelUrls.draft = remixPath;
-        await this.displayModel(remixPath, "draft");
-        this.addModelSwitchControls();
-      } else {
-        this.addMessage(`❌ Remix failed: ${result.message}`, "bot");
-      }
-    } catch (error) {
-      clearInterval(interval);
-      console.error("Remix error:", error);
-      this.addMessage(`❌ Remix error: ${error.message}`, "bot");
-    } finally {
-      this.hideTypingIndicator();
-      this.hideProgress();
-      this.clearFiles();
-      this.sendBtn.disabled = false;
-      this.isGenerating = false;
-    }
-  }
-  
+  /* ---------- Chat / generation ---------- */
 
   async handleSubmit(e) {
-
     e.preventDefault();
     const message = this.chatInput.value.trim();
     if (!message && this.currentFiles.length === 0) return;
     if (this.isGenerating) return;
 
-    if(this.currentModel && this.modelUrls.refined){
+    // If a model already exists, interpret as remix
+    if (this.currentModel && this.modelUrls.refined) {
       await this.sendRemixRequest(message);
       return;
     }
@@ -702,7 +479,7 @@ class TextTo3DApp {
 
     if (this.currentFiles.length > 0) {
       this.addMessage(
-        `📎 Uploaded ${this.currentFiles.length} file(s): ${this.currentFiles
+        `Uploaded ${this.currentFiles.length} file(s): ${this.currentFiles
           .map((f) => f.name)
           .join(", ")}`,
         "system"
@@ -714,7 +491,6 @@ class TextTo3DApp {
     this.showTypingIndicator();
     this.showProgress();
 
-    // Simulate progress
     let progress = 0;
     const progressInterval = setInterval(() => {
       progress += Math.random() * 15;
@@ -723,11 +499,9 @@ class TextTo3DApp {
     }, 200);
 
     try {
-      const response = await fetch("http://localhost:5050/txtgen3d", {
+      const response = await fetch("/txtgen3d", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: message,
           artstyle: "realistic",
@@ -739,50 +513,35 @@ class TextTo3DApp {
       this.updateProgress(100);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error ${response.status}`);
       }
 
       const result = await response.json();
 
       if (result.status === "success") {
-        this.addMessage(
-          `✅ Successfully generated 3D model: ${result.message}`,
-          "bot"
-        );
+        this.addMessage(`3D model generated: ${result.message}`, "bot");
 
-        this.modelUrls.refined = `http://localhost:5050/models/refined_model.glb`;
-        this.modelUrls.draft = `http://localhost:5050/models/draft_model.glb`;
+        this.modelUrls.refined = `/models/refined_model.glb`;
+        this.modelUrls.draft = `/models/draft_model.glb`;
         await this.displayModel(this.modelUrls.refined, "refined");
 
-        // Add model switching controls
-        this.addModelSwitchControls();
-
         this.addMessage(
-          "🎮 Use your mouse to rotate the model and scroll to zoom. Switch between Draft and Refined versions using the buttons!",
+          "Use the mouse to rotate the model and the scroll wheel to zoom.",
           "system"
         );
       } else {
         this.addMessage(
-          `❌ Generation failed: ${result.message || "Unknown error"}`,
+          `Generation failed: ${result.message || "Unknown error"}.`,
           "bot"
         );
       }
     } catch (error) {
       clearInterval(progressInterval);
       console.error("API call failed:", error);
-      if (error.name === "TypeError" && error.message.includes("fetch")) {
-        this.addMessage(
-          "❌ Cannot connect to the server. Please make sure the backend is running on localhost:5050.",
-          "bot"
-        );
-      } else if (error.message.includes("HTTP error")) {
-        this.addMessage(`❌ Server error: ${error.message}`, "bot");
-      } else {
-        this.addMessage(
-          "❌ Sorry, there was an error processing your request. Please try again.",
-          "bot"
-        );
-      }
+      this.addMessage(
+        "There was an error processing your request. Ensure the backend is running and try again.",
+        "bot"
+      );
     } finally {
       this.isGenerating = false;
       this.sendBtn.disabled = false;
@@ -792,10 +551,77 @@ class TextTo3DApp {
     }
   }
 
+  async sendRemixRequest(prompt) {
+    if (!prompt) return;
+
+    this.addMessage(prompt, "user");
+    this.chatInput.value = "";
+    this.chatInput.style.height = "auto";
+
+    this.showTypingIndicator();
+    this.showProgress();
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 10;
+      this.updateProgress(Math.min(progress, 90));
+    }, 200);
+
+    try {
+      if (!this.modelUrls.refined || !this.modelUrls.refined.includes("/models/")) {
+        throw new Error("No uploaded model found for remixing.");
+      }
+
+      const filename = this.modelUrls.refined.split("/models/")[1];
+      const glb_path = `3d_files/${filename}`;
+
+      const response = await fetch("/remixgen3d", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          glb_path: glb_path,
+          images_output: "images",
+          text: prompt,
+          image_output: "image",
+          threeD_output: "3d_files",
+        }),
+      });
+
+      clearInterval(interval);
+      this.updateProgress(100);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.status === "success") {
+        this.addMessage("Remix complete. Displaying new model.", "bot");
+
+        const remixPath = "/models/remixed_draft_model.glb";
+        this.modelUrls.draft = remixPath;
+        await this.displayModel(remixPath, "draft");
+      } else {
+        this.addMessage(`Remix failed: ${result.message}`, "bot");
+      }
+    } catch (error) {
+      clearInterval(interval);
+      console.error("Remix error:", error);
+      this.addMessage(`Remix error: ${error.message}`, "bot");
+    } finally {
+      this.hideTypingIndicator();
+      this.hideProgress();
+      this.clearFiles();
+      this.sendBtn.disabled = false;
+      this.isGenerating = false;
+    }
+  }
+
   downloadModel() {
     if (!this.modelUrls.refined && !this.modelUrls.draft) {
       this.addMessage(
-        "❌ No model available for download. Please generate a model first.",
+        "No model is available for download. Generate or upload a model first.",
         "bot"
       );
       return;
@@ -803,27 +629,195 @@ class TextTo3DApp {
 
     const currentUrl = this.modelUrls[this.currentModelType];
     if (currentUrl) {
-      // Create a temporary link to download the current model
       const link = document.createElement("a");
       link.href = currentUrl;
       link.download = `${this.currentModelType}_model.glb`;
       link.click();
 
       this.addMessage(
-        `🎉 Downloading ${this.currentModelType} model...`,
+        `Downloading ${this.currentModelType} model.`,
         "system"
       );
     }
   }
+
+  /* ---------- Layout resize ---------- */
+
+  setupResize() {
+    this.resizeHandle?.addEventListener("mousedown", (e) => {
+      this.isResizing = true;
+      this.resizeHandle.classList.add("dragging");
+      this.boundHandleResize = this.handleResize.bind(this);
+      this.boundStopResize = this.stopResize.bind(this);
+      document.addEventListener("mousemove", this.boundHandleResize);
+      document.addEventListener("mouseup", this.boundStopResize);
+      e.preventDefault();
+    });
+  }
+
+  handleResize(e) {
+    if (!this.isResizing) return;
+    const containerRect = this.appContainer.getBoundingClientRect();
+    const newChatWidth = containerRect.right - e.clientX;
+    const minChatWidth = 350;
+    const maxChatWidth = 800;
+    const minViewerWidth = 400;
+
+    if (
+      newChatWidth >= minChatWidth &&
+      newChatWidth <= maxChatWidth &&
+      containerRect.width - newChatWidth >= minViewerWidth
+    ) {
+      this.chatSection.style.width = newChatWidth + "px";
+      this.resizeHandle.style.right = newChatWidth + "px";
+      setTimeout(() => this.onWindowResize(), 100);
+    }
+  }
+
+  stopResize() {
+    this.isResizing = false;
+    this.resizeHandle.classList.remove("dragging");
+    document.removeEventListener("mousemove", this.boundHandleResize);
+    document.removeEventListener("mouseup", this.boundStopResize);
+  }
+
+  autoResizeTextarea() {
+    this.chatInput?.addEventListener("input", () => {
+      this.chatInput.style.height = "auto";
+      this.chatInput.style.height =
+        Math.min(this.chatInput.scrollHeight, 120) + "px";
+    });
+  }
+
+  /* ---------- Speech-to-text with OpenAI whisper-1 ---------- */
+
+  async toggleVoiceInput() {
+    if (this.isRecording) {
+      this.stopRecording();
+    } else {
+      await this.startRecording();
+    }
+  }
+
+  async startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.addMessage(
+        "Microphone access is not supported in this browser.",
+        "bot"
+      );
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.audioStream = stream;
+      this.audioChunks = [];
+
+      // Try higher-quality Opus WebM; fall back if browser complains.
+      let options = {
+        mimeType: "audio/webm;codecs=opus",
+        audioBitsPerSecond: 128000,
+      };
+      try {
+        this.mediaRecorder = new MediaRecorder(stream, options);
+      } catch (e) {
+        this.mediaRecorder = new MediaRecorder(stream);
+      }
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          this.audioChunks.push(event.data);
+        }
+      };
+
+      this.mediaRecorder.onstop = () => {
+        const blob = new Blob(this.audioChunks, { type: "audio/webm" });
+        this.sendAudioForTranscription(blob);
+
+        if (this.audioStream) {
+          this.audioStream.getTracks().forEach((t) => t.stop());
+          this.audioStream = null;
+        }
+      };
+
+      this.mediaRecorder.start();
+      this.isRecording = true;
+      this.voiceBtn.classList.add("active");
+      if (this.sttStatus) this.sttStatus.textContent = "Recording…";
+      this.addMessage(
+        "Recording started. Click the microphone button again to stop.",
+        "system"
+      );
+    } catch (err) {
+      console.error("Error accessing microphone:", err);
+      this.addMessage(
+        "Unable to access the microphone. Check browser permissions and try again.",
+        "bot"
+      );
+    }
+  }
+
+  stopRecording() {
+    if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
+      this.mediaRecorder.stop();
+    }
+
+    this.isRecording = false;
+    this.voiceBtn.classList.remove("active");
+    if (this.sttStatus) this.sttStatus.textContent = "Transcribing…";
+    this.addMessage("Recording stopped. Transcribing audio.", "system");
+  }
+
+  async sendAudioForTranscription(blob) {
+    try {
+      const formData = new FormData();
+      formData.append("file", blob, "speech.webm");
+
+      const response = await fetch("/transcribe", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.status === "success" && result.text) {
+        const transcript = result.text.trim();
+        this.chatInput.value = transcript;
+        this.chatInput.dispatchEvent(new Event("input"));
+        this.addMessage(
+          "Transcription complete. You can edit the text and press Send.",
+          "system"
+        );
+      } else {
+        this.addMessage(
+          `Transcription failed: ${result.message || "Unknown error."}`,
+          "bot"
+        );
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+      this.addMessage(
+        "There was an error transcribing the audio. Please try again or type your prompt.",
+        "bot"
+      );
+    } finally {
+      if (this.sttStatus) this.sttStatus.textContent = "";
+    }
+  }
 }
 
-// Initialize the app
+/* ---------- Initialize app ---------- */
+
 const app = new TextTo3DApp();
 
-// Add welcome message after a delay
 setTimeout(() => {
   app.addMessage(
-    "💡 Pro tip: Try describing objects like 'futuristic spaceship', 'cozy wooden cabin', or 'fantasy sword' for best results!",
+    "Tip: clear, concise descriptions work best. For example: “a low-poly medieval tower” or “a realistic ergonomic office chair”.",
     "bot"
   );
-}, 2000);
+}, 1500);
